@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Screen Recorder - Shareable Tool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0a0a16;
+    color: #fff;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+  }
+
+  /* LEFT SIDEBAR */
+  .sidebar {
+    width: 230px;
+    background: #12122a;
+    padding: 20px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    border-right: 1px solid #2a2a4a;
+    flex-shrink: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+  .sidebar .logo {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #2a2a4a;
+    flex-shrink: 0;
+  }
+
+  /* TIMER */
+  .timer-section {
+    background: #1a1a3a;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .timer-section .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #888;
+    margin-bottom: 4px;
+  }
+  .timer-section .timer {
+    font-family: 'Courier New', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    color: #e74c3c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .timer-section .timer .blink-dot {
+    display: none;
+    width: 12px;
+    height: 12px;
+    background: #e74c3c;
+    border-radius: 50%;
+    animation: blink 1s infinite;
+  }
+  .timer-section .timer .paused-badge {
+    display: none;
+    font-size: 12px;
+    background: #f39c12;
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: sans-serif;
+    font-weight: 700;
+  }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  .timer-section.recording .blink-dot { display: inline-block; }
+  .timer-section.paused .paused-badge { display: inline-block; }
+  .timer-section.paused .blink-dot { display: none; }
+
+  /* STATUS */
+  .status-box {
+    background: #1a1a3a;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #aaa;
+    flex-shrink: 0;
+  }
+  .status-box .status-icon { font-size: 20px; margin-bottom: 2px; }
+
+  /* BUTTONS */
+  .sidebar-buttons { display: flex; flex-direction: column; gap: 8px; flex: 1; justify-content: flex-start; }
+  .btn {
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    touch-action: manipulation;
+  }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; }
+  .btn-start { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; font-size: 15px; padding: 14px; }
+  .btn-start:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(231,76,60,0.3); }
+  .btn-stop { background: linear-gradient(135deg, #2ecc71, #27ae60); color: #fff; }
+  .btn-stop:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(46,204,113,0.3); }
+  .btn-pause { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; }
+  .btn-pause:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(243,156,18,0.3); }
+  .btn-mic { background: #2a2a4a; color: #fff; }
+  .btn-mic.active { background: #e67e22; }
+  .btn-mic:hover:not(:disabled) { background: #3a3a5a; }
+  .btn-download { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+  .btn-download:hover:not(:disabled) { box-shadow: 0 4px 15px rgba(52,152,219,0.3); }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { flex: 1; }
+
+  /* RIGHT MAIN AREA */
+  .main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 25px;
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+  }
+  .main-area h1 { font-size: 22px; flex-shrink: 0; }
+  .main-area .subtitle { color: #666; font-size: 12px; margin-bottom: 15px; flex-shrink: 0; }
+
+  .preview-container {
+    flex: 1;
+    background: #000;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 200px;
+    border: 1px solid #222;
+  }
+  .preview-container.has-recording { border-color: #e74c3c; box-shadow: 0 0 25px rgba(231,76,60,0.1); }
+  #preview { width: 100%; height: 100%; object-fit: contain; display: none; }
+  .preview-placeholder { color: #444; text-align: center; padding: 20px; }
+  .preview-placeholder .icon { font-size: 48px; margin-bottom: 8px; }
+  .preview-placeholder .text { font-size: 14px; }
+
+  /* BOTTOM INFO */
+  .info-bar { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+  .info-msg, .error-msg {
+    border-radius: 8px; padding: 8px 12px; font-size: 12px; display: none; flex: 1;
+  }
+  .info-msg { background: #1a2a3a; border: 1px solid #3498db; color: #6bb5ff; }
+  .error-msg { background: #2a1a1a; border: 1px solid #e74c3c; color: #ff6b6b; }
+  .tip-box {
+    background: #1a1a2a; border: 1px solid #f39c12; border-radius: 8px; padding: 8px 12px;
+    font-size: 11px; line-height: 1.5; color: #f0c674; flex-shrink: 0; margin-top: 8px;
+  }
+  .tip-box.hide { display: none; }
+
+  /* AUDIO INDICATORS */
+  .audio-indicators { display: flex; gap: 8px; justify-content: center; margin-top: 6px; flex-wrap: wrap; }
+  .audio-badge {
+    font-size: 10px; padding: 3px 8px; border-radius: 5px; background: #1a1a3a; color: #666;
+  }
+  .audio-badge.on { color: #2ecc71; }
+  .audio-badge.off { color: #e74c3c; }
+
+  /* ===== MOBILE ===== */
+  @media (max-width: 700px) {
+    body { flex-direction: column; }
+    .sidebar {
+      width: 100%; height: auto; min-height: unset;
+      border-right: none; border-bottom: 1px solid #2a2a4a;
+      flex-direction: row; flex-wrap: wrap; padding: 10px; gap: 8px;
+      overflow-y: visible;
+    }
+    .sidebar .logo { width: 100%; font-size: 16px; padding-bottom: 6px; margin-bottom: 0; }
+    .timer-section {
+      flex: 1; min-width: 100px; padding: 10px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .timer-section .label { display: none; }
+    .timer-section .timer { font-size: 22px; }
+    .timer-section .audio-indicators { display: none; }
+    .status-box { display: none; }
+    .sidebar-buttons {
+      flex-direction: row; flex-wrap: wrap; flex: unset; width: 100%;
+    }
+    .sidebar-buttons .btn { flex: 1; min-width: 70px; padding: 10px 6px; font-size: 11px; }
+    .btn-start { font-size: 13px; padding: 12px; }
+    .main-area { padding: 10px; height: auto; min-height: 50vh; }
+    .main-area h1 { font-size: 18px; }
+    .preview-container { min-height: 150px; }
+    .btn-row .btn { min-width: 50px; }
+  }
+  @media (max-width: 400px) {
+    .sidebar-buttons .btn { font-size: 10px; padding: 8px 4px; min-width: 55px; }
+    .timer-section .timer { font-size: 18px; }
+    .btn { padding: 10px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LEFT SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">&#x1F4FD; Screen Recorder</div>
+
+  <div class="timer-section" id="timerSection">
+    <div>
+      <div class="label">Recording Time</div>
+      <div class="timer">
+        <span class="blink-dot"></span>
+        <span id="timer">00:00</span>
+        <span class="paused-badge">PAUSED</span>
+      </div>
+    </div>
+    <div class="audio-indicators">
+      <span class="audio-badge on" id="micBadge">&#x1F3A4; Mic</span>
+      <span class="audio-badge on" id="systemBadge">&#x1F50A; Audio</span>
+    </div>
+  </div>
+
+  <div class="status-box">
+    <div class="status-icon" id="statusIcon">&#x23F8;</div>
+    <div id="statusText">Ready</div>
+  </div>
+
+  <div class="sidebar-buttons">
+    <button class="btn btn-start" id="startBtn">&#x25B6; Start</button>
+    <div class="btn-row" id="recordingControls" style="display:none;">
+      <button class="btn btn-pause" id="pauseBtn">&#x23F8;&#xFE0F; Pause</button>
+      <button class="btn btn-stop" id="stopBtn">&#x25A0; Stop</button>
+    </div>
+    <button class="btn btn-mic active" id="micBtn">&#x1F3A4; Mic</button>
+    <button class="btn btn-download" id="downloadBtn" disabled>&#x2B07; Download</button>
+  </div>
+</div>
+
+<!-- RIGHT MAIN AREA -->
+<div class="main-area">
+  <h1>&#x1F4F9; Live Preview</h1>
+  <p class="subtitle">Your recording will appear here &mdash; works on mobile &amp; laptop</p>
+
+  <div class="preview-container" id="previewContainer">
+    <video id="preview" autoplay muted playsinline></video>
+    <div class="preview-placeholder" id="placeholder">
+      <div class="icon">&#x1F4F9;</div>
+      <div class="text">Tap <strong>"Start"</strong> to begin recording</div>
+    </div>
+  </div>
+
+  <div class="tip-box" id="tipBox">
+    <strong>&#x1F4A1; Audio tip:</strong>
+    Use <strong>Chrome/Edge</strong>. When sharing, select the <strong>tab</strong> and check
+    <strong>"Share tab audio"</strong>. Mic + tab audio both recorded.
+  </div>
+
+  <div class="info-bar">
+    <div class="info-msg" id="infoMsg"></div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+</div>
+
+<script>
+// ========= STATE =========
+let mediaRecorder = null;
+let recordedChunks = [];
+let screenStream = null;
+let micStream = null;
+let combinedStream = null;
+let audioContext = null;
+let isRecording = false;
+let isPaused = false;
+let micEnabled = true;
+let timerInterval = null;
+let seconds = 0;
+
+// ========= DOM REFS =========
+const preview = document.getElementById('preview');
+const placeholder = document.getElementById('placeholder');
+const previewContainer = document.getElementById('previewContainer');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const recordingControls = document.getElementById('recordingControls');
+const downloadBtn = document.getElementById('downloadBtn');
+const micBtn = document.getElementById('micBtn');
+const statusText = document.getElementById('statusText');
+const statusIcon = document.getElementById('statusIcon');
+const timerEl = document.getElementById('timer');
+const timerSection = document.getElementById('timerSection');
+const errorMsg = document.getElementById('errorMsg');
+const infoMsg = document.getElementById('infoMsg');
+const tipBox = document.getElementById('tipBox');
+const micBadge = document.getElementById('micBadge');
+const systemBadge = document.getElementById('systemBadge');
+
+// ========= HELPERS =========
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.style.display = 'block';
+  setTimeout(() => { errorMsg.style.display = 'none'; }, 6000);
+}
+function showInfo(msg) {
+  infoMsg.textContent = msg;
+  infoMsg.style.display = 'block';
+}
+function hideInfo() { infoMsg.style.display = 'none'; }
+
+function formatTime(s) {
+  const m = String(Math.floor(s / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return m + ':' + sec;
+}
+function updateTimer() {
+  seconds++;
+  timerEl.textContent = formatTime(seconds);
+}
+function resetTimer() {
+  clearInterval(timerInterval);
+  seconds = 0;
+  timerEl.textContent = '00:00';
+  timerSection.classList.remove('recording', 'paused');
+}
+
+function setStatus(text, icon) {
+  statusText.textContent = text;
+  statusIcon.innerHTML = icon || '&#x23F8;';
+}
+
+function getSupportedMimeType() {
+  const types = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=h264,opus',
+    'video/webm',
+    'video/mp4'
+  ];
+  for (const t of types) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return 'video/webm';
+}
+
+function cleanupStreams() {
+  if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (combinedStream) { combinedStream = null; }
+  if (audioContext) { audioContext.close(); audioContext = null; }
+  preview.srcObject = null;
+  preview.style.display = 'none';
+  placeholder.style.display = 'block';
+  previewContainer.classList.remove('has-recording');
+}
+
+// ========= AUDIO MIXING =========
+async function createMixedAudioTrack(micTrack, systemTrack) {
+  audioContext = new AudioContext();
+  const dest = audioContext.createMediaStreamDestination();
+
+  if (micTrack) {
+    const src = audioContext.createMediaStreamSource(new MediaStream([micTrack]));
+    const g = audioContext.createGain();
+    g.gain.value = 1.0;
+    src.connect(g);
+    g.connect(dest);
+  }
+  if (systemTrack) {
+    const src = audioContext.createMediaStreamSource(new MediaStream([systemTrack]));
+    const g = audioContext.createGain();
+    g.gain.value = 1.0;
+    src.connect(g);
+    g.connect(dest);
+  }
+  return dest.stream.getAudioTracks()[0];
+}
+
+// ========= RECORDING CONTROLS =========
+async function startRecording() {
+  recordedChunks = [];
+  hideInfo();
+  errorMsg.style.display = 'none';
+  tipBox.classList.add('hide');
+
+  try {
+    showInfo('Select a TAB and check "Share tab audio" for system sound.');
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always' },
+      audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 }
+    });
+    hideInfo();
+
+    if (!screenStream.getVideoTracks().length) throw new Error('No video track.');
+
+    const videoTrack = screenStream.getVideoTracks()[0];
+    videoTrack.onended = () => { if (isRecording) stopRecording(); };
+
+    let micTrack = null;
+    if (micEnabled) {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 }
+        });
+        micTrack = micStream.getAudioTracks()[0];
+        micBadge.className = 'audio-badge on';
+      } catch (e) {
+        showError('Mic access denied.');
+        micBadge.className = 'audio-badge off';
+      }
+    }
+
+    const systemTrack = screenStream.getAudioTracks()[0];
+    systemBadge.className = systemTrack ? 'audio-badge on' : 'audio-badge off';
+
+    combinedStream = new MediaStream();
+    combinedStream.addTrack(videoTrack);
+
+    if (micTrack && systemTrack) {
+      const mixedTrack = await createMixedAudioTrack(micTrack, systemTrack);
+      combinedStream.addTrack(mixedTrack);
+    } else if (micTrack) combinedStream.addTrack(micTrack);
+    else if (systemTrack) combinedStream.addTrack(systemTrack);
+
+    preview.srcObject = combinedStream;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+    previewContainer.classList.add('has-recording');
+
+    const mimeType = getSupportedMimeType();
+    mediaRecorder = new MediaRecorder(combinedStream, {
+      mimeType: mimeType,
+      videoBitsPerSecond: 5000000
+    });
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+
+    mediaRecorder.onpause = () => {
+      isPaused = true;
+      timerSection.classList.add('paused');
+      pauseBtn.textContent = '\u25B6\uFE0F Resume';
+      setStatus('Paused', '\u23F8\uFE0F');
+      clearInterval(timerInterval);
+    };
+
+    mediaRecorder.onresume = () => {
+      isPaused = false;
+      timerSection.classList.remove('paused');
+      pauseBtn.textContent = '\u23F8\uFE0F Pause';
+      setStatus('Recording...', '\u25B6\uFE0F');
+      timerInterval = setInterval(updateTimer, 1000);
+    };
+
+    mediaRecorder.onstop = () => {
+      cleanupStreams();
+      if (recordedChunks.length) {
+        downloadBtn.disabled = false;
+        showInfo('Done! Click Download to save.');
+      }
+      setStatus('Ready', '&#x23F8;');
+      resetTimer();
+      isRecording = false;
+      isPaused = false;
+      startBtn.style.display = 'block';
+      recordingControls.style.display = 'none';
+      micBtn.disabled = false;
+    };
+
+    mediaRecorder.start(100);
+    isRecording = true;
+    isPaused = false;
+
+    startBtn.style.display = 'none';
+    recordingControls.style.display = 'flex';
+    stopBtn.disabled = false;
+    pauseBtn.disabled = false;
+    pauseBtn.textContent = '\u23F8\uFE0F Pause';
+    micBtn.disabled = true;
+    setStatus('Recording...', '\u25B6\uFE0F');
+    timerSection.classList.add('recording');
+    timerSection.classList.remove('paused');
+    resetTimer();
+    timerInterval = setInterval(updateTimer, 1000);
+
+  } catch (err) {
+    if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+      showError('Screen sharing cancelled.');
+    } else {
+      showError(err.message || 'Failed to start.');
+    }
+    cleanupStreams();
+    startBtn.style.display = 'block';
+    recordingControls.style.display = 'none';
+  }
+}
+
+function stopRecording() {
+  stopBtn.disabled = true;
+  pauseBtn.disabled = true;
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+}
+
+function togglePause() {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+  if (mediaRecorder.state === 'paused') {
+    mediaRecorder.resume();
+  } else {
+    mediaRecorder.pause();
+  }
+}
+
+function downloadRecording() {
+  if (!recordedChunks.length) return;
+  const blob = new Blob(recordedChunks, { type: getSupportedMimeType() });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  a.download = 'recording_' + ts + '.webm';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function toggleMic() {
+  micEnabled = !micEnabled;
+  micBtn.textContent = micEnabled ? '\u{1F3A4} Mic' : '\u{1F507} Muted';
+  micBtn.classList.toggle('active');
+}
+
+// ========= EVENTS =========
+startBtn.addEventListener('click', startRecording);
+stopBtn.addEventListener('click', stopRecording);
+pauseBtn.addEventListener('click', togglePause);
+downloadBtn.addEventListener('click', downloadRecording);
+micBtn.addEventListener('click', toggleMic);
+micBtn.classList.add('active');
+
+if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+  showError('Browser not supported. Use Chrome or Edge on laptop/Android.');
+  startBtn.disabled = true;
+}
+</script>
+</body>
+</html>
